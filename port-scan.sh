@@ -48,6 +48,9 @@ exit
 }
 $1
 $2
+#CLEAN OLD SESSIONS
+rm /tmp/hosts_up_DCs.txt
+rm /tmp/hosts_up_smb.txt
 clear
 banner
 if [ -z "$*" ]; then
@@ -59,20 +62,23 @@ fi
 if [ $1 == help ]; then
     help
 fi
-echo ""   
+clear
+echo ""
 echo "[*] testing vlan $1.0/24, available hosts gonna be printed on the terminal ... Wait ..."
 echo ""
-for hosts in $(seq 20 45); do
+for hosts in $(seq 1 254); do
     if ping -c 1 -W 1 $1.$hosts &> /dev/null; then
         sleep $2
         echo "[+] $1.$hosts" && echo $1.$hosts >> hostsUP.list
     fi
 done
+echo "[+] IPs of UP hosts saved in /tmp/hosts_up.dat : "
+cat hostsUP.list >> /tmp/hosts_up.dat
 echo ""
 echo "[+] hosts scan's over"
 echo ""
 echo "[-] starting port scan"
-for port in 21 22 23 80 443 8080 8089 4444 9999 3333; do
+for port in 135 445 636 389 80 443 8080 8089 8081 22 21 23; do
     for i in $(cat hostsUP.list); do
         clear
         banner
@@ -82,9 +88,19 @@ for port in 21 22 23 80 443 8080 8089 4444 9999 3333; do
         timeout 1 bash -c "echo >/dev/tcp/$i/$port" && echo port $port is open on host $i >> res.txt
     done
 done
+cat res.txt | grep 445 | cut -d " " -f 7 >> /tmp/hosts_up_smb.txt
 clear
 banner
 echo ""
 cat res.txt | sort -u
+echo ""
+echo "[+] IPs of UP hosts with active SMB saved in /tmp/hosts_up_smb.txt (perfect for crackmapexec scan...)"
+echo ""
+cat /tmp/hosts_up_smb.txt
+egrep "636|389" res.txt >> /tmp/hosts_up_DCs.txt
+echo ""
+echo "[+] IPs of UP hosts with ports 636 and 389 (DCs suspected) saved in /tmp/hosts_up_DCs.txt (perfect for impacket tests)"
+echo ""
+cat /tmp/hosts_up_DCs.txt
 rm hostsUP.list
 rm res.txt
